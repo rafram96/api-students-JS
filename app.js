@@ -1,14 +1,17 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const multer = require('multer');
 const db = require('./db');
 
 const app = express();
 const port = 8001;
 
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
+// Middlewares
+app.use(bodyParser.json()); // para JSON
+app.use(bodyParser.urlencoded({ extended: true })); // para x-www-form-urlencoded
+const upload = multer(); // para form-data sin archivos
 
-// GET y POST para /students
+// Rutas para /students
 app.route('/students')
   .get((req, res) => {
     db.all("SELECT * FROM students", [], (err, rows) => {
@@ -16,8 +19,13 @@ app.route('/students')
       res.json(rows);
     });
   })
-  .post((req, res) => {
+  .post(upload.none(), (req, res) => {
     const { firstname, lastname, gender, age } = req.body;
+
+    if (!firstname || !lastname || !gender || age == null) {
+      return res.status(400).send("Missing required fields");
+    }
+
     const sql = `INSERT INTO students (firstname, lastname, gender, age) VALUES (?, ?, ?, ?)`;
     db.run(sql, [firstname, lastname, gender, age], function (err) {
       if (err) return res.status(500).send(err.message);
@@ -25,7 +33,7 @@ app.route('/students')
     });
   });
 
-// GET, PUT y DELETE para /student/:id
+// Rutas para /student/:id
 app.route('/student/:id')
   .get((req, res) => {
     const id = req.params.id;
@@ -35,9 +43,14 @@ app.route('/student/:id')
       else res.status(404).send("Student not found");
     });
   })
-  .put((req, res) => {
+  .put(upload.none(), (req, res) => {
     const { firstname, lastname, gender, age } = req.body;
     const id = req.params.id;
+
+    if (!firstname || !lastname || !gender || age == null) {
+      return res.status(400).send("Missing required fields");
+    }
+
     const sql = `UPDATE students SET firstname = ?, lastname = ?, gender = ?, age = ? WHERE id = ?`;
     db.run(sql, [firstname, lastname, gender, age, id], function (err) {
       if (err) return res.status(500).send(err.message);
@@ -48,7 +61,7 @@ app.route('/student/:id')
     const id = req.params.id;
     db.run("DELETE FROM students WHERE id = ?", [id], function (err) {
       if (err) return res.status(500).send(err.message);
-      res.send(`The Student with id: ${id} has been deleted.`);
+      res.send(`The student with id: ${id} has been deleted.`);
     });
   });
 
